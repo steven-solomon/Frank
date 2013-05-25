@@ -1,55 +1,54 @@
-WAIT_TIMEOUT = 240
+WAIT_TIMEOUT = ENV['WAIT_TIMEOUT'].to_i || 240
 
 require 'rspec/expectations'
 
 # -- See -- #
 Then /^I wait to see "([^\"]*)"$/ do |expected_mark|
-  Timeout::timeout(WAIT_TIMEOUT) do
-    until view_with_mark_exists( expected_mark )
-      sleep 0.1
-    end
-  end
+  quote = get_selector_quote(expected_mark)
+  wait_until(:message => "waited to see view marked #{quote}#{expected_mark}#{quote}"){
+    view_with_mark_exists( expected_mark ) 
+  }
 end
 
 Then /^I wait to not see "([^\"]*)"$/ do |expected_mark|
-  sleep 3
-  Timeout::timeout(WAIT_TIMEOUT) do
-    while element_exists( "view marked:'#{expected_mark}'" )
-      sleep 0.1
-    end
-  end
+  sleep 3 # ugh, this should be removed but I'm worried it'll break existing tests
+  quote = get_selector_quote(expected_mark)
+  wait_until(:message => "waited to not see view marked #{quote}#{expected_mark}#{quote}"){
+    !view_with_mark_exists( expected_mark )
+  }
+end
+
+Then /^I should see a navigation bar titled "([^\"]*)"$/ do |expected_mark|
+  quote = get_selector_quote(expected_mark)
+  check_element_exists( "navigationItemView marked:#{quote}#{expected_mark}#{quote}" )
 end
 
 Then /^I wait to see a navigation bar titled "([^\"]*)"$/ do |expected_mark|
-    Timeout::timeout(30) do
-      values = frankly_map( 'navigationItemView', 'accessibilityLabel' )
-      until values.include?(expected_mark)
-        values = frankly_map( 'navigationItemView', 'accessibilityLabel' )
-        sleep 0.1
-      end
-    end
+  quote = get_selector_quote(expected_mark)
+  wait_until( :timeout => 30, :message => "waited to see a navigation bar titled #{quote}#{expected_mark}#{quote}" ) {
+    element_exists( "navigationItemView marked:#{quote}#{expected_mark}#{quote}" )
+  }
 end
 
 Then /^I wait to not see a navigation bar titled "([^\"]*)"$/ do |expected_mark|
-    Timeout::timeout(30) do
-      values = frankly_map( 'navigationItemView', 'accessibilityLabel' )
-      while values.include?(expected_mark)
-        values = frankly_map( 'navigationItemView', 'accessibilityLabel' )
-        sleep 0.1
-      end
-    end
+  quote = get_selector_quote(expected_mark)
+  wait_until( :timeout => 30, :message => "waited to not see a navigation bar titled #{quote}#{expected_mark}#{quote}" ) {
+    !element_exists( "navigationItemView marked:#{quote}#{expected_mark}#{quote}" )
+  }
 end
 
 Then /^I should see a "([^\"]*)" button$/ do |expected_mark|
-  check_element_exists("button marked:'#{expected_mark}'")
+  quote = get_selector_quote(expected_mark)
+  check_element_exists("button marked:#{quote}#{expected_mark}#{quote}")
 end
 
 Then /^I should see "([^\"]*)"$/ do |expected_mark|
-  check_element_exists("view marked:'#{expected_mark}'")
+  check_view_with_mark_exists(expected_mark)
 end
 
 Then /^I should not see "([^\"]*)"$/ do |expected_mark|
-  check_element_does_not_exist("view marked:'#{expected_mark}'")
+  quote = get_selector_quote(expected_mark)
+  check_element_does_not_exist_or_is_not_visible("view marked:#{quote}#{expected_mark}#{quote}")
 end
 
 Then /I should see the following:/ do |table|
@@ -66,15 +65,14 @@ Then /I should not see the following:/ do |table|
   end
 end
 
-Then /^I should see a navigation bar titled "([^\"]*)"$/ do |expected_mark|
-  values = frankly_map( 'navigationItemView', 'accessibilityLabel' )
+Then /^I should see an alert view titled "([^\"]*)"$/ do |expected_mark|
+  values = frankly_map( 'alertView', 'title')
   values.should include(expected_mark)
 end
 
-Then /^I should see an alert view titled "([^\"]*)"$/ do |expected_mark|
-  values = frankly_map( 'alertView', 'message')
-  puts values
-  values.should include(expected_mark)
+Then /^I should see an alert view with the message "([^\"]*)"$/ do |expected_mark|
+    values = frankly_map( 'alertView', 'message')
+    values.should include(expected_mark)
 end
 
 Then /^I should not see an alert view$/ do
@@ -84,24 +82,28 @@ end
 Then /^I should see an element of class "([^\"]*)" with name "([^\"]*)" with the following labels: "([^\"]*)"$/ do |className, classLabel, listOfLabels|
 	arrayOfLabels = listOfLabels.split(',');
 	arrayOfLabels.each do |label|
-		check_element_exists("view marked:'#{classLabel}' parent view:'#{className}' descendant view marked:'#{label}'")
+    quote = get_selector_quote(label)
+		check_element_exists("view marked:'#{classLabel}' parent view:'#{className}' descendant view marked:#{quote}#{label}#{quote}")
 	end
 end
 
 Then /^I should see an element of class "([^\"]*)" with name "([^\"]*)" with a "([^\"]*)" button$/ do |className, classLabel, buttonName|
-	check_element_exists("view marked:'#{classLabel}' parent view:'#{className}' descendant button marked:'#{buttonName}'")
+  quote = get_selector_quote(buttonName)
+	check_element_exists("view marked:'#{classLabel}' parent view:'#{className}' descendant button marked:#{quote}#{buttonName}#{quote}")
 end
 
 Then /^I should not see a hidden button marked "([^\"]*)"$/ do |expected_mark|
-  element_is_not_hidden("button marked:'#{expected_mark}'").should be_false
+  quote = get_selector_quote(expected_mark)
+  element_is_not_hidden("button marked:#{quote}#{expected_mark}#{quote}").should be_false
 end
 
 Then /^I should see a nonhidden button marked "([^\"]*)"$/ do |expected_mark|
-  element_is_not_hidden("button marked:'#{expected_mark}'").should be_true
+  quote = get_selector_quote(expected_mark)
+  element_is_not_hidden("button marked:#{quote}#{expected_mark}#{quote}").should be_true
 end
 
 Then /^I should see an element of class "([^\"]*)"$/ do |className|
-	element_is_not_hidden("view:'#{className}'")
+  element_is_not_hidden("view:'#{className}'").should be_true
 end
 
 Then /^I should not see an element of class "([^\"]*)"$/ do |className|
@@ -111,52 +113,9 @@ Then /^I should not see an element of class "([^\"]*)"$/ do |className|
 end
 
 
-# -- Type/Fill in -- #
-
-When /^I type "([^\"]*)" into the "([^\"]*)" text field$/ do |text_to_type, field_name|
-  text_fields_modified = frankly_map( "textField placeholder:'#{field_name}'", "setText:", text_to_type )
-  raise "could not find text fields with placeholder '#{field_name}'" if text_fields_modified.empty?
-  #TODO raise warning if text_fields_modified.count > 1
-end
-
-# alias 
-When /^I fill in "([^\"]*)" with "([^\"]*)"$/ do |text_field, text_to_type|
-  When %Q|I type "#{text_to_type}" into the "#{text_field}" text field|
-end
-
-When /^I fill in text fields as follows:$/ do |table|
-  table.hashes.each do |row|
-    When %Q|I type "#{row['text']}" into the "#{row['field']}" text field|
-  end
-end
-
 # -- Rotate -- #
-Given /^the device is in (a )?landscape orientation$/ do |ignored|
-  # for some reason the simulator sometimes starts of reporting its orientation as 'flat'. Workaround for this is to rotate the device then wait a bit
-  if 'flat' == frankly_current_orientation
-    rotate_simulator_right
-    sleep 1
-  end 
-  
-  unless frankly_oriented_landscape?
-    rotate_simulator_left
-    sleep 1
-    raise "expected orientation to be landscape after rotating left, but it is #{frankly_current_orientation}" unless frankly_oriented_landscape?
-  end
-end
-
-Given /^the device is in (a )?portrait orientation$/ do |ignored|
-  # for some reason the simulator sometimes starts of reporting its orientation as 'flat'. Workaround for this is to rotate the device then wait a bit
-  if 'flat' == frankly_current_orientation
-    rotate_simulator_right
-    sleep 1
-  end 
-
-  unless frankly_oriented_portrait?
-    rotate_simulator_left
-    sleep 1
-    raise "Expected orientation to be portrait after rotating left, but it is #{frankly_current_orientation}" unless frankly_oriented_portrait?
-  end
+Given /^the device is in (a )?(landscape|portrait) orientation$/ do |_,orientation|
+  frankly_set_orientation orientation
 end
 
 When /^I simulate a memory warning$/ do
@@ -175,8 +134,10 @@ Then /^I rotate to the "([^\"]*)"$/ do |direction|
 end
 
 # -- touch -- #
+# generic views
 When /^I touch "([^\"]*)"$/ do |mark|
-  selector = "view marked:'#{mark}' first"
+  quote = get_selector_quote(mark)
+  selector = "view marked:#{quote}#{mark}#{quote} first"
   if element_exists(selector)
      touch( selector )
   else
@@ -187,19 +148,21 @@ end
 
 When /^I touch "([^\"]*)" if exists$/ do |mark|
   sleep 1
-  selector = "view marked:'#{mark}' first"
+  quote = get_selector_quote(mark)
+  selector = "view marked:#{quote}#{mark}#{quote} first"
   if element_exists(selector)
   	touch(selector)
-    sleep 1
   end
 end
 
+# table cells
 When /^I touch the first table cell$/ do
     touch("tableViewCell first")
 end
 
 When /^I touch the table cell marked "([^\"]*)"$/ do |mark|
-  touch("tableViewCell marked:'#{mark}'")
+  quote = get_selector_quote(mark)
+  touch("tableViewCell marked:#{quote}#{mark}#{quote}")
 end
 
 When /^I touch the (\d*)(?:st|nd|rd|th)? table cell$/ do |ordinal|
@@ -210,17 +173,22 @@ end
 Then /I touch the following:/ do |table|
   values = frankly_map( 'view', 'accessibilityLabel' )
   table.raw.each do |expected_mark|
-    touch( "view marked:'#{expected_mark}'" )
+    quote = get_selector_quote(expected_mark)
+    touch( "view marked:#{quote}#{expected_mark}#{quote}" )
     sleep 2
   end
 end
 
+# buttons
 When /^I touch the button marked "([^\"]*)"$/ do |mark|
-  touch( "button marked:'#{mark}'" )
+  quote = get_selector_quote(mark)
+  touch( "button marked:#{quote}#{mark}#{quote}" )
 end
 
+# action sheets
 When /^I touch the "([^\"]*)" action sheet button$/ do |mark|
-  touch( "actionSheet threePartButton marked:'#{mark}'" )
+  quote = get_selector_quote(mark)
+  touch( "actionSheet threePartButton marked:#{quote}#{mark}#{quote}" )
 end
 
 When /^I touch the (\d*)(?:st|nd|rd|th)? action sheet button$/ do |ordinal|
@@ -228,6 +196,12 @@ When /^I touch the (\d*)(?:st|nd|rd|th)? action sheet button$/ do |ordinal|
   touch( "actionSheet threePartButton tag:#{ordinal}" )
 end
 
+# alert views
+When /^I touch the "([^\"]*)" alert view button$/ do |mark|
+  quote = get_selector_quote(mark) 
+  touch( "alertView threePartButton marked:#{quote}#{mark}#{quote}" )
+end
+                                                                     
 When /^I touch the (\d*)(?:st|nd|rd|th)? alert view button$/ do |ordinal|
   ordinal = ordinal.to_i
   touch( "alertView threePartButton tag:#{ordinal}" )
@@ -235,47 +209,23 @@ end
 
 # -- switch -- #
 
-When /^I flip switch "([^\"]*)" on$/ do |mark|
-  selector = "view:'UISwitch' marked:'#{mark}'"
-  views_switched = frankly_map( selector, 'setOn:animated:', true, true )
-  raise "could not find anything matching [#{uiquery}] to switch" if views_switched.empty?
-end
-
-When /^I flip switch "([^\"]*)" off$/ do |mark|
-  selector = "view:'UISwitch' marked:'#{mark}'"
-  views_switched = frankly_map( selector, 'setOn:animated:', false, true )
-  raise "could not find anything matching [#{uiquery}] to switch" if views_switched.empty?
-end
-
 When /^I flip switch "([^\"]*)"$/ do |mark|
-  touch("view:'UISwitch' marked:'#{mark}'") 
+  quote = get_selector_quote(mark)
+  touch("view:'UISwitch' marked:#{quote}#{mark}#{quote}")
 end
 
-Then /^switch "([^\"]*)" should be on$/ do |mark|
-#  switch_states = frankly_map( "view:'Switch' marked:'#{mark}'", "isOn" )
-  switch_states = frankly_map( "view accesibilityLabel:'#{mark}'", "isOn" )
-  puts "test #{switch_states.inspect}"
+
+Then /^switch "([^\"]*)" should be (on|off)$/ do |mark,expected_state|
+  expected_state = expected_state == 'on'
   
-  if switch_states == 0
-    puts "Switch #{mark} is ON"
-  else
-    puts "Switch #{mark} is OFF, flim switch ON"
-    Then %Q|I flip switch "#{mark}"|
+  quote = get_selector_quote(mark)
+  selector = "view:'UISwitch' marked:#{quote}#{mark}#{quote}"
+  switch_states = frankly_map( selector, "isOn" )
+
+  switch_states.each do |switch_state|
+    switch_state.should == expected_state
   end
 end
-
-Then /^switch "([^\"]*)" should be off$/ do |mark|
-  switch_states = frankly_map( "view:'UISwitch' marked:'#{mark}'", "isOn" )
-  puts "test #{switch_states.inspect}"
-  
-  if switch_states == 0
-    puts "Switch #{mark} is ON, flip switch OFF"
-    Then %Q|I flip switch "#{mark}"|
-  else
-    puts "Switch #{mark} is OFF"
-  end
-end
-
 
 # -- misc -- #
 
@@ -287,12 +237,14 @@ end
 Then /^a pop\-over menu is displayed with the following:$/ do |table|
   sleep 1
   table.raw.each do |expected_mark|
-    check_element_exists "actionSheet view marked:'#{expected_mark}'"
+    quote = get_selector_quote(expected_mark)
+    check_element_exists "actionSheet view marked:#{quote}#{expected_mark}#{quote}"
   end
 end
 
 Then /^I navigate back$/ do
   touch( "navigationItemButtonView" )
+  wait_for_nothing_to_be_animating
 end
 
 When /^I dump the DOM$/ do
@@ -301,4 +253,8 @@ end
 
 When /^I quit the simulator/ do
   quit_simulator 
+end
+
+When /^I reset the simulator/ do
+  simulator_reset_data
 end

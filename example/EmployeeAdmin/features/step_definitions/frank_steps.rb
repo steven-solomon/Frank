@@ -14,8 +14,20 @@ Then /^I should see a table containing the following:$/ do |table|
   end
 end
 
+Then /^I should see (\d+) rows in section (\d+)$/ do |expected_num_rows, section|
+  section = section.to_i
+  expected_num_rows = expected_num_rows.to_i
+  num_rows_array = frankly_map( "tableView first", "numberOfRowsInSection:", section ) 
+  raise "no table found" if num_rows_array.empty?
+  num_rows_array.first.should eq(expected_num_rows)
+end
+
 When /^I touch the "([^\"]*)" nav bar button$/ do |mark|
   touch( "navigationButton marked:'#{mark}'" )
+end
+
+When /^I touch the screen at \((\d+),(\d+)\)$/ do |x, y|
+  frankly_map( "view:'UILayoutContainerView'", "touchx:y:", x, y )
 end
 
 Then /^I should see an alert view saying "([^\"]*)"$/ do |expected_mark|
@@ -24,10 +36,18 @@ end
 
 When /^I scroll down (\d*)(?:st|nd|rd|th)? row(?:s)?$/ do |rows_to_scroll|
   rows_to_scroll = rows_to_scroll.to_i 
-  tables_scrolled = frankly_map( "tableView scrollDown:#{rows_to_scroll}", 'tag' )
+  tables_scrolled = frankly_map( "tableView", "scrollDownRows:", rows_to_scroll )
   raise "no table could be found to scroll" if tables_scrolled.empty?
   sleep 0.5 # give the UI a chance to animate the scrolling
 end
+
+
+When /^I scroll to the bottom of the table$/ do
+  tables_scrolled = frankly_map( "tableView", "scrollToBottom" )
+  raise "no table could be found to scroll" if tables_scrolled.empty?
+  sleep 0.5 # give the UI a chance to animate the scrolling
+end
+
 
 Then /^the "([^\"]*)" table view cell should (not )?be selected$/ do |mark, qualifier|
   expected_to_be_selected = "not " != qualifier
@@ -67,3 +87,12 @@ Then /^the "([^\"]*)" table view cell should (not )?have a (\w*) accessory$/ do 
 
 end
 
+
+Then /^I should (not )?see a keyboard$/ do |negator|
+  keyboards = frankly_map( "view:'UIKeyboardImpl'", 'tag' )
+  if negator == "not "
+    keyboards.should be_empty
+  else
+    keyboards.should_not be_empty
+  end
+end

@@ -1,0 +1,18 @@
+[submodule "lib/UISpec"]
+	path = lib/UISpec
+	url = https://github.com/moredip/UISpec
+[submodule "lib/Shelley"]
+	path = lib/Shelley
+	url = https://github.com/TestingWithFrank/Shelley.git
+[submodule "symbiote"]
+	path = symbiote
+	url = https://github.com/TestingWithFrank/symbiote.git
+[submodule "lib/cocoahttpserver"]
+	path = lib/cocoahttpserver
+	url = https://github.com/robbiehanson/CocoaHTTPServer.git
+[submodule "lib/PublicAutomation"]
+	path = lib/PublicAutomation
+	url = https://github.com/TestingWithFrank/PublicAutomation.git
+[submodule "lib/AnyJSON"]
+	path = lib/AnyJSON
+	url = https://github.com/mattt/AnyJSON.git

@@ -6,10 +6,39 @@
 //  Copyright 2010 ThoughtWorks. See NOTICE file for details.
 //
 
+#import "HTTPDataResponse.h"
+
 #import "FrankCommandRoute.h"
 #import "RoutingHTTPConnection.h"
 
+#if TARGET_OS_IPHONE
+#import "UIImage+Frank.h"
+#else
+#import "NSImage+Frank.h"
+#endif
+
+extern BOOL frankLogEnabled;
+
 @implementation FrankCommandRoute
+
+
+#pragma mark singleton implementation
+
+static FrankCommandRoute *s_singleton;
+
++ (void)initialize
+{
+    static BOOL initialized = NO;
+    if(!initialized)
+    {
+        initialized = YES;
+        s_singleton = [[FrankCommandRoute alloc] init];
+    }
+}
+
++ (FrankCommandRoute *) singleton{
+	return s_singleton;
+}
 
 - (id) init
 {
@@ -39,14 +68,21 @@
 	return [_commandDict objectForKey:[path objectAtIndex:0]];
 }
 
+
 - (NSObject<HTTPResponse> *) handleRequestForPath: (NSArray *)path withConnection:(RoutingHTTPConnection *)connection{
-	
+    
+    if(frankLogEnabled) {
+        NSLog( @"received request with path %@\nPOST DATA:\n%@", path, connection.postDataAsString );
+    }
+    
 	id<FrankCommand> command = [self commandForPath:path];
 	if( nil == command )
 		return nil;
 	
 	NSString *response = [command handleCommandWithRequestBody:connection.postDataAsString];
-	NSLog( @"returning:\n%@", response );
+    if(frankLogEnabled) {
+        NSLog( @"returning:\n%@", response );
+    }
 	
 	NSData *browseData = [response dataUsingEncoding:NSUTF8StringEncoding];
 	return [[[HTTPDataResponse alloc] initWithData:browseData] autorelease];

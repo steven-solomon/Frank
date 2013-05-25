@@ -8,84 +8,66 @@
 
 #import "MapOperationCommand.h"
 
-#import "UIQuery.h"
+#import "FranklyProtocolHelper.h"
+
+#import "ViewJSONSerializer.h"
 #import "JSON.h"
+
+#import "SelectorEngineRegistry.h"
+
 #import "Operation.h"
+
+#if TARGET_OS_IPHONE
+#define FrankMapViewType UIView
+#else
+#define FrankMapViewType NSView
+#endif
+
 
 @implementation MapOperationCommand
 
-- (NSString *)generateErrorResponseWithReason:(NSString *)reason andDetails:(NSString *)details{
-	NSDictionary *response = [NSDictionary dictionaryWithObjectsAndKeys: 
-							  @"ERROR", @"outcome",
-							  reason, @"reason", 
-							  details, @"details",
-							  nil];
-	return [response JSONRepresentation];
-}
-- (NSString *)generateSuccessResponseWithResults:(NSArray *)results{
-	NSDictionary *response = [NSDictionary dictionaryWithObjectsAndKeys: 
-							  @"SUCCESS", @"outcome",
-							  results, @"results",
-							  nil];
-	return [response JSONRepresentation];
-}
-
-- (id) performOperation:(Operation *)operation onView:(UIView *)view {
-
+- (id) performOperation:(Operation *)operation onView:(FrankMapViewType *)view {
+    
 	if( [operation appliesToObject:view] )
 		return [operation applyToObject:view];
-	
-	// wrapping the view in a uiquery like this lets us perform operations like touch, flash, inspect, etc
-	UIQuery *wrappedView = [UIQuery withViews:[NSMutableArray arrayWithObject:view]
-									 className:@"UIView"];
-	if( [operation appliesToObject:wrappedView] )
-		return [operation applyToObject:wrappedView];
-	
+
 	return nil;
 }
 
-- (NSObject *) makeJsonFriendly: (id) obj {
-	if( nil == obj )
-		return [NSNull null];
-	
-	if( [obj isKindOfClass:[NSString class]] || 
-		[obj isKindOfClass:[NSNumber class]] )
-		return obj;
-	
-	return @"<COMPLEX TYPE>";
-}
-
 - (NSString *)handleCommandWithRequestBody:(NSString *)requestBody {
-	
-	NSDictionary *requestCommand = [requestBody JSONValue];
-	NSString *queryString = [requestCommand objectForKey:@"query"];
+	NSDictionary *requestCommand = FROM_JSON(requestBody);
+    
+	NSString *selectorEngineString = [requestCommand objectForKey:@"selector_engine"];
+    if( !selectorEngineString )
+        selectorEngineString = @"uiquery"; // default to UIQuery, for compatibility with old clients
+    
+	NSString *selector = [requestCommand objectForKey:@"query"];
 	NSDictionary *operationDict = [requestCommand objectForKey:@"operation"];
 	Operation *operation = [[[Operation alloc] initFromJsonRepresentation:operationDict] autorelease];
-	
-	UIQuery *query;
-	
-	@try {
-		query = $( [NSMutableString stringWithString:queryString] );
+    
+    NSArray *viewsToMap = nil;
+    @try {
+        viewsToMap = [SelectorEngineRegistry selectViewsWithEngineNamed:selectorEngineString usingSelector:selector];
+    }	
+    @catch (NSException * e) {
+		NSLog( @"Exception while using %@ to select views with '%@':\n%@", selectorEngineString, selector, e );
+		return [FranklyProtocolHelper generateErrorResponseWithReason:@"invalid selector" andDetails:[e reason]];
 	}
-	@catch (NSException * e) {
-		NSLog( @"Exception while executing query '%@':\n%@", queryString, e );
-		return [self generateErrorResponseWithReason:@"invalid selector" andDetails:[e reason]];
-	}
 	
-	NSMutableArray *results = [NSMutableArray arrayWithCapacity:[[query views] count]];
-	for (UIView *view in [query views]) {
+    NSMutableArray *results = [NSMutableArray arrayWithCapacity:[viewsToMap count]];
+	for (FrankMapViewType *view in viewsToMap) {
 		@try {
 			id result = [self performOperation:operation onView:view];
-			[results addObject:[self makeJsonFriendly:result]];
+			[results addObject:[ViewJSONSerializer jsonify:result]];
 		}
 		@catch (NSException * e) {
 			NSLog( @"Exception while performing operation %@\n%@", operation, e );
-			return [self generateErrorResponseWithReason: [ NSString stringWithFormat:@"encountered error while attempting to perform %@ on selected elements",operation] 
+			return [FranklyProtocolHelper generateErrorResponseWithReason: [ NSString stringWithFormat:@"encountered error while attempting to perform %@ on selected elements",operation]
 											  andDetails:[e reason]];
 		}
 	}
 							   
-   return [self generateSuccessResponseWithResults: results];
+   return [FranklyProtocolHelper generateSuccessResponseWithResults: results];
 }
 
 @end

@@ -3,14 +3,15 @@
 //  Chase iPad
 //
 //  Created by Pete Hodgson on 1/19/11.
-//  Copyright 2011 JPMorgan Chase. All rights reserved.
+//  Copyright 2011 ThoughtWorks. See NOTICE file for details.
 //
 
 #import "AccessibilityCheckCommand.h"
 #import "JSON.h"
 
-
 @implementation AccessibilityCheckCommand
+
+#if TARGET_OS_IPHONE
 
 - (BOOL) accessibilitySeemsToBeTurnedOn {
 	UIWindow *keyWindow = [[UIApplication sharedApplication] keyWindow];
@@ -24,11 +25,19 @@
 	return setSucceeded;
 }
 
+#else
+
+- (BOOL) accessibilitySeemsToBeTurnedOn {
+    return AXAPIEnabled();
+}
+
+#endif // TARGET_OS_IPHONE
+
 - (NSString *)handleCommandWithRequestBody:(NSString *)requestBody {
 	NSString *boolString = ([self accessibilitySeemsToBeTurnedOn] ? @"true" : @"false");
 	NSDictionary *response = [NSDictionary dictionaryWithObject:boolString
 														forKey:@"accessibility_enabled"];
-	return [response JSONRepresentation];
+	return TO_JSON(response);
 }
 
 @end

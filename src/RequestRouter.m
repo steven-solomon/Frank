@@ -62,9 +62,13 @@ static RequestRouter *s_singleton;
 - (NSObject<HTTPResponse> *) handleRequestForPath:(NSString *)path withConnection:(RoutingHTTPConnection *)connection {
 	
 	NSArray *pathComponents = [self pathComponentsWithPath:path];	
-	NSObject<HTTPResponse> *response = nil;
+	__block NSObject<HTTPResponse> *response = nil;
 	for (id<Route> route in _routes) {
-		response = [route handleRequestForPath:pathComponents withConnection:connection];
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            response = [[route handleRequestForPath:pathComponents withConnection:connection] retain];
+        });
+        [response autorelease];
+        
 		if( nil != response )
 			break;
 	}
@@ -85,6 +89,9 @@ static RequestRouter *s_singleton;
 @implementation RequestRouter(Private)
 
 - (NSArray *)pathComponentsWithPath:(NSString *)path{
+	// get rid of query params. We have no use for them, at least for now
+	path = [[path componentsSeparatedByString:@"?"] objectAtIndex:0];
+			
 	NSMutableArray *pathComponents = [NSMutableArray arrayWithArray:[path pathComponents]];
 	[pathComponents removeObject:@"/"]; //handles leading and trailing slashs
 	

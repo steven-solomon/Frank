@@ -1,19 +1,33 @@
 #!/usr/bin/env ruby
 
-require 'fileutils'
+######################## ######################## ######################## 
+#
+#                             IMPORTANT NOTE
+#
+#     This script is deprecated. it's just here for backwards compatibility.
+#
+#     Users should be using the Frank::CLI-backed `frank` executable
+#
+######################## ######################## ######################## 
 
-features_dir = File.join( FileUtils.pwd, "features" )
+require 'frank-cucumber/cli'
 
-if File.exists?( features_dir ) 
-  puts "A features directory already exists. I won't overwrite it. Giving up."
-  exit 1
-else
-  puts "I'm about to create a subdirectory called features which will contain all your Cucumber tests. Please hit return to confirm that's what you want."
-  exit 2 unless STDIN.gets.chomp == ''
+Frank::CLI.start
+
+
+command = ARGV[0]
+
+unless ["update-server",nil].include? command
+  puts "unrecognized command #{command}"
+  puts "the only valid command at the moment is update-server"
+  exit 10
 end
 
-source_dir = File.join( File.dirname(__FILE__), '..', 'features-skeleton' )
+update_mode = ARGV[0] == 'update-server'
 
-FileUtils.cp_r( source_dir, features_dir )
-
-puts "features subdirectory created. Try executing 'cucumber' from the current directory to see how you new cucumber setup runs." 
+cli = Frank::CLI.new
+if update_mode
+  cli.update
+else
+  cli.skeleton
+end
